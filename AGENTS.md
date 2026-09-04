@@ -7,6 +7,7 @@ I love to build software in very efficient way, keeping it simple and maintainab
 ## Behavior preferences
 - Questions are read-only. Question is request for answer. Do not edit files or run commands when question asked. If the solution is obvious, just propose it.
 - Do not spawn subagents, if it could be done by the same agent. Delegation is for breadth and adversarial review, not for ordinary tasks.
+- Git commit messages should not have co-authors or any other metadata. Author should only be owner of the repository.
 
 ## General coding preferences
 - KISS(Keep it simple, stupid.) and YAGNI(You Aren't Gonna Need It) are the core.
