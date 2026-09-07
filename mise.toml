@@ -1,0 +1,25 @@
+# Tool versions for every machine bootstrapped from this repository.
+# bootstrap.sh symlinks this file to ~/.config/mise/config.toml, so these tools
+# are available in every shell via the mise shims on PATH.
+
+[tools]
+# Runtimes. Tracks rather than exact pins: machines converge without a
+# maintenance commit every release. python gets a series pin because 3.x minor
+# bumps invalidate existing virtualenvs.
+go     = "latest"
+node   = "lts"
+python = "3.13"
+
+# CLI tools. Installed here rather than from apt/brew so that the binary names
+# and versions are identical on macOS and Ubuntu -- apt's fd-find installs
+# `fdfind`, and apt's `yq` is a different program entirely.
+jq      = "latest"
+yq      = "latest"
+ripgrep = "latest"
+fd      = "latest"
+gh      = "latest"
+
+[settings]
+# Use prebuilt python binaries. Compiling from source takes minutes and pulls in
+# a long list of build dependencies.
+python.compile = false
