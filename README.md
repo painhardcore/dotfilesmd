@@ -93,6 +93,7 @@ so a rerun on a settled machine shows just the key and the PATH line.
 | Go, Node.js, Python | mise | Versions declared in [`mise.toml`](mise.toml) |
 | jq, yq, ripgrep, fd, gh | mise | See below |
 | Claude Code, Codex | Official installers | Vendor-recommended, self-updating |
+| Tailscale (Ubuntu only) | Tailscale's own apt repo | Gives the machine a stable address reachable from anywhere |
 
 The CLI tools come from mise on both operating systems rather than from apt or
 Homebrew. Ubuntu's `fd-find` package installs the binary as `fdfind`, and
@@ -109,6 +110,23 @@ the documented path for both and gives binaries that update themselves. The
 installer is downloaded to a temporary file and then run, rather than piped
 straight into a shell. Claude Code also publishes a signed apt repository if a
 package-manager install is ever preferred over the auto-updating native one.
+
+### Tailscale
+
+On Ubuntu, bootstrap installs Tailscale from Tailscale's own apt repository. It
+is **not** installed on macOS — install it there yourself.
+
+Bootstrap only installs the package. It never joins a tailnet: that needs an
+interactive login, and this repository holds no credentials. Joining is a manual
+step, and it appears in the "Next steps" footer after a fresh install:
+
+```sh
+sudo tailscale up
+```
+
+Once the machine is on your tailnet, rerun `make update`. The SSH block will
+then print the machine's tailnet address instead of its LAN IP — stable, and
+reachable from outside the network. See [SSH key](#ssh-key) below.
 
 ## Shared agent instructions
 
@@ -244,9 +262,17 @@ If password login is disabled on the Ubuntu box, `ssh-copy-id` cannot connect at
 all. Bootstrap prints the fallback too: append your MacBook's public key to
 `~/.ssh/authorized_keys` on that machine by hand.
 
-The address comes from the source address of the machine's default route, so on
-a cloud host behind NAT it will be a private IP — substitute the reachable
-hostname or address.
+The address is the best one available, most stable first:
+
+1. The machine's **tailnet address** — its MagicDNS name, or its `100.x` address
+   if MagicDNS is off. Stable and reachable from anywhere.
+2. The source address of its **default route** — a LAN IP. On a cloud host
+   behind NAT this is private, so substitute the reachable address.
+3. Its **hostname**, when there is nothing better.
+
+A first bootstrap always falls back to the LAN IP, because Tailscale has only
+just been installed and is not up yet. The banner says so. Run
+`sudo tailscale up`, then `make update`, and it prints the tailnet address.
 
 Note the two keys point in opposite directions. `id_ed25519_dev` is generated so
 the machine can authenticate *outward*; `ssh-copy-id` authorizes your laptop to

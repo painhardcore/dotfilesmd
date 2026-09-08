@@ -202,6 +202,12 @@ EOF
   echo "so it has its own ~/.ssh/id_ed25519_dev. If not, drop the -i flag and"
   echo "the IdentityFile line to use its default key.)"
   echo
+  if [ -n "$SSH_ADDR_IS_LAN" ]; then
+    echo "That is a LAN address. Once this machine is on your tailnet"
+    echo "(sudo tailscale up), rerun 'make update' to print its stable"
+    echo "tailnet address instead."
+  fi
+  echo
   echo "If password login is disabled here, ssh-copy-id cannot work. Append"
   echo "your MacBook's public key on this machine instead:"
   echo

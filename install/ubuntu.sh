@@ -4,6 +4,15 @@
 # installed from apt: apt's fd-find provides the binary as `fdfind`, and apt's
 # `yq` is the Python jq wrapper rather than mikefarah's yq.
 
+# Read here rather than relying on bootstrap's detect_os, which runs in a command
+# substitution where a sourced /etc/os-release would be lost. UBUNTU_CODENAME is
+# preferred: derivatives (Mint, Pop!_OS) set VERSION_CODENAME to their own release
+# name, which neither the Docker nor the Tailscale repository publishes.
+# shellcheck disable=SC1091
+. /etc/os-release
+codename="${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}"
+[ -n "$codename" ] || die "cannot determine the distribution codename for apt repositories"
+
 log "installing system packages with apt"
 export DEBIAN_FRONTEND=noninteractive
 $SUDO apt-get update -qq
@@ -22,14 +31,6 @@ else
       -o /etc/apt/keyrings/docker.asc
     $SUDO chmod a+r /etc/apt/keyrings/docker.asc
   fi
-  # Read the codename here rather than relying on bootstrap's detect_os, which
-  # runs in a command substitution where a sourced /etc/os-release would be lost.
-  # UBUNTU_CODENAME is preferred: derivatives (Mint, Pop!_OS) set VERSION_CODENAME
-  # to their own release name, which Docker's repository does not publish.
-  # shellcheck disable=SC1091
-  . /etc/os-release
-  codename="${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}"
-  [ -n "$codename" ] || die "cannot determine the Ubuntu codename for the Docker repository"
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $codename stable" \
     | $SUDO tee /etc/apt/sources.list.d/docker.list >/dev/null
 
@@ -46,4 +47,27 @@ if [ -n "$SUDO" ] && ! id -nG "$me" | tr ' ' '\n' | grep -qx docker; then
   log "adding $me to the 'docker' group"
   $SUDO usermod -aG docker "$me"
   notice "Log out and back in for 'docker' group membership to take effect."
+fi
+
+# Tailscale gives this machine a stable address reachable from anywhere, which
+# is what the SSH block at the end of bootstrap prefers over the LAN IP.
+# Install only: joining a tailnet needs an interactive login, so that stays manual.
+if have tailscale; then
+  log "tailscale already installed, skipping"
+else
+  log "adding the Tailscale apt repository"
+  # Tailscale publishes the sources.list file itself (no arch to template, the
+  # repo is multi-arch) and it references this keyring path absolutely, so the
+  # key must land in /usr/share/keyrings rather than /etc/apt/keyrings.
+  if [ ! -f /usr/share/keyrings/tailscale-archive-keyring.gpg ]; then
+    $SUDO curl -fsSL "https://pkgs.tailscale.com/stable/$ID/$codename.noarmor.gpg" \
+      -o /usr/share/keyrings/tailscale-archive-keyring.gpg
+  fi
+  $SUDO curl -fsSL "https://pkgs.tailscale.com/stable/$ID/$codename.tailscale-keyring.list" \
+    -o /etc/apt/sources.list.d/tailscale.list
+
+  log "installing tailscale"
+  $SUDO apt-get update -qq
+  $SUDO apt-get install -y tailscale
+  notice "Join your tailnet with 'sudo tailscale up', then rerun 'make update'."
 fi
