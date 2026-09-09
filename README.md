@@ -192,6 +192,86 @@ Bootstrap writes a single `source` line to `~/.profile`, and to `~/.bashrc` and
 `~/.zshrc` if those already exist. It never installs a shell and never rewrites
 existing lines.
 
+## Private repository
+
+`./bootstrap.sh` never touches a credential. Everything that needs your identity
+— the private `infra` repo, the tailnet, and login keys — lives behind
+`make private`.
+
+```sh
+./bootstrap.sh                       # tools, key, configs. No credentials.
+gh auth login -s admin:public_key    # once per machine, ~30 seconds
+make private KEYS=macbookm1
+```
+
+### Why the extra step
+
+Reaching a private repo needs a credential, and the tailnet auth key lives in
+that repo. Something has to be injected by hand the first time — there is no way
+around it on a genuinely fresh machine.
+
+`gh auth login` makes that step as small as possible. It uses OAuth device flow:
+it prints a code, you approve it on your phone, and the token goes to the system
+keyring. No SSH key is involved, so the chicken-and-egg never forms. `gh` is
+already installed by `bootstrap.sh`, and the clone happens over HTTPS.
+
+The `-s admin:public_key` scope is required to register this machine's key with
+your GitHub account. A plain `gh auth login` does not request it, and
+`make private` will stop and tell you to run
+`gh auth refresh -h github.com -s admin:public_key` if it is missing.
+
+`make private` also runs `gh auth setup-git`, which adds `gh` as a git
+credential helper in your global git config so `git push` works over HTTPS.
+
+### What `make private` does
+
+1. Clones `painhardcore/infra` to `~/infra`, or fast-forwards it. A diverged
+   checkout stops the run rather than being merged automatically.
+2. Joins the tailnet as `tag:build` using the auth key tracked in the repo,
+   skipping if already up. The key is passed as `--auth-key file:...` rather
+   than on the command line, where it would be visible in `ps`.
+3. Copies this machine's public key to `infra/keys/<hostname>.pub`, then commits
+   and pushes — only when it actually changed.
+4. Registers the key with your GitHub account, skipping if already present.
+5. Writes the keys named in `KEYS=` into `~/.ssh/authorized_keys`.
+
+Override the key filename with `MACHINE_NAME=`, the clone path with
+`INFRA_DIR=`, and the tailnet tag with `TS_TAG=`.
+
+### Committing a key stages access, it does not grant it
+
+`infra/keys/*.pub` grants root on every enabled host — but only when you run
+`make keys HOST=...` in that repo. `make private` never does. It puts the key on
+record and leaves the decision to you:
+
+```sh
+cd ~/infra
+make keys-diff HOST=srv1    # preview
+make keys HOST=srv1         # apply
+```
+
+Because the machine's key is also registered with your GitHub account, that
+machine can push to your repositories as you. A compromised build box therefore
+reaches your GitHub, not just itself.
+
+### KEYS=
+
+`KEYS` is a comma-separated list of filenames in `infra/keys/`, without the
+`.pub`:
+
+```sh
+make private KEYS=macbookm1,phone
+```
+
+Run it with no `KEYS=` and nothing is installed; the available names are printed
+so the next run can name them. A name with no matching file stops the run and
+lists what exists.
+
+The keys land between `# BEGIN MANAGED BY dotfilesmd` and `# END MANAGED BY
+dotfilesmd`. Only that block is rewritten, so keys you added by hand — and the
+separate block `infra`'s own `make keys` manages — are never touched. Dropping a
+name from `KEYS=` removes it on the next run.
+
 ## Updating
 
 There is one implementation. `make update` is just `./bootstrap.sh`, and every

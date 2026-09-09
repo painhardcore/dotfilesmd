@@ -1,4 +1,4 @@
-.PHONY: update pull check
+.PHONY: update pull private check
 
 # Apply the working tree to this machine. Works with local edits, and is the
 # same idempotent script a fresh machine runs.
@@ -9,6 +9,12 @@ update:
 pull:
 	git pull --ff-only
 	./bootstrap.sh
+
+# Clone the private infra repo, join the tailnet, commit this machine's public
+# key, and install chosen keys into authorized_keys. Needs `gh auth login` first.
+#   make private KEYS=macbookm1
+private:
+	KEYS="$(KEYS)" ./bootstrap.sh --private
 
 # Syntax-check every script. shellcheck is used when installed.
 check:

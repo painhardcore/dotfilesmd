@@ -10,6 +10,16 @@ set -euo pipefail
 
 REPO="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
+# --private opts into the phase that needs a GitHub credential. Without it this
+# script touches no credential of any kind.
+PRIVATE=""
+for arg in "$@"; do
+  case "$arg" in
+    --private) PRIVATE=1 ;;
+    *) printf 'usage: %s [--private]\n' "$0" >&2; exit 2 ;;
+  esac
+done
+
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mWARN\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mERROR\033[0m %s\n' "$*" >&2; exit 1; }
@@ -64,6 +74,22 @@ mirror_skills() {
       log "updated skill '$name' in $dest"
     fi
   done
+}
+
+# Replace our own block in a file, leaving every other line alone. Deliberately
+# a different marker from infra's "MANAGED BY infra": that tool installs every
+# key in keys/, this one installs the KEYS= subset, so sharing a marker would
+# make each silently clobber the other. Separate blocks coexist.
+write_managed_block() {
+  file="$1"; body="$2"
+  begin="# BEGIN MANAGED BY dotfilesmd"; end="# END MANAGED BY dotfilesmd"
+  tmp="$(mktemp)"
+  if [ -f "$file" ]; then
+    awk -v b="$begin" -v e="$end" '$0==b{s=1;next} $0==e{s=0;next} !s' "$file" >"$tmp"
+  fi
+  printf '%s\n%s\n%s\n' "$begin" "$body" "$end" >>"$tmp"
+  install -m 600 "$tmp" "$file"
+  rm -f "$tmp"
 }
 
 # Add the init line to a shell rc file, once.
@@ -162,6 +188,49 @@ done
 # shellcheck source=/dev/null
 . "$REPO/install/ssh.sh"
 
+# 7. Private repository phase, only with --private. Runs after the key exists
+#    (it commits the public half) and before the address is chosen below, so a
+#    tailnet joined here is reflected in the banner on the same run.
+if [ -n "$PRIVATE" ]; then
+  # shellcheck source=/dev/null
+  . "$REPO/install/private.sh"
+fi
+
+# Best-effort address for the "log in from elsewhere" hint printed at the end,
+# most stable first. Every assignment ends in `|| true`: under `set -o pipefail`
+# a missing command (no `ip` on macOS, no `tailscale` before it is installed)
+# fails the pipeline and would abort the whole run.
+SSH_TARGET=""
+
+# 1. Tailnet address: stable, and reachable from outside this LAN. The MagicDNS
+#    name is preferred over the 100.x IP because it is readable and survives an
+#    address change; `.Self.DNSName` comes back with a trailing dot to strip.
+#    Empty until `tailscale up` has run, so a first bootstrap falls through.
+if have tailscale; then
+  SSH_TARGET="$(tailscale status --json 2>/dev/null | jq -r '.Self.DNSName // empty' 2>/dev/null | sed 's/\.$//')" || true
+  if [ -z "$SSH_TARGET" ]; then
+    SSH_TARGET="$(tailscale ip -4 2>/dev/null | head -1)" || true
+  fi
+fi
+
+# 2. Source address of the default route: what a LAN peer would use. On a cloud
+#    host behind NAT it is private, hence the "substitute" note in the hint.
+if [ -z "$SSH_TARGET" ]; then
+  SSH_TARGET="$(ip -4 -o route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p')" || true
+  SSH_ADDR_IS_LAN=1
+fi
+
+# 3. Hostname, when there is nothing better.
+[ -n "$SSH_TARGET" ] || SSH_TARGET="$(uname -n)"
+SSH_TARGET="$(id -un)@$SSH_TARGET"
+
+# Short host alias for the ~/.ssh/config block printed at the end.
+SSH_HOST_ALIAS="$(uname -n)"; SSH_HOST_ALIAS="${SSH_HOST_ALIAS%%.*}"
+
+# Set when we fell back to a LAN address, so the banner can say the tailnet
+# address will replace it after `tailscale up`.
+SSH_ADDR_IS_LAN="${SSH_ADDR_IS_LAN:-}"
+
 echo
 log "bootstrap complete"
 echo
@@ -171,8 +240,14 @@ cat "$SSH_KEY.pub"
 echo
 echo "  $SSH_KEY.pub"
 echo
-echo "Add this key to the infrastructure/access repository when appropriate."
 echo "This repository does not grant access to anything by itself."
+if [ -z "$PRIVATE" ]; then
+  echo
+  echo "To inventory this key, join the tailnet, and install login keys:"
+  echo
+  echo "    gh auth login -s admin:public_key"
+  echo "    make private KEYS=<name>"
+fi
 
 # Key-based login *into* this machine is what you want on a remote box. macOS
 # ships with Remote Login off, so the same block there would be wrong.
