@@ -4,8 +4,8 @@ Bootstrap for my development machines. One command on a fresh macOS or Ubuntu
 box installs the tools I use, wires up my shared coding-agent instructions, and
 generates a machine-specific SSH key.
 
-[AGENTS.md](AGENTS.md) is the heart of it — my preferences for how agents
-investigate problems, write code, and work with me — shared across Claude Code,
+[AGENTS.md](AGENTS.md) is the heart of it: my preferences for how agents
+investigate problems, write code, and work with me, shared across Claude Code,
 Codex, and OpenCode.
 
 ## Supported systems
@@ -40,9 +40,156 @@ cd ~/.dotfiles
 
 Then open a new shell, or `. ~/.profile`, to pick up the new `PATH`.
 
+That is the whole story for a laptop. For an Ubuntu box that also joins the
+tailnet and gets login keys, follow [Adding a new build
+machine](#adding-a-new-build-machine) instead.
+
 The script needs `sudo` only for apt packages on Ubuntu. Everything else
-installs into your home directory. Keep the checkout in place — the agent
-instruction files are symlinks back to it.
+installs into your home directory. Keep the checkout in place, because the
+agent instruction files are symlinks back to it.
+
+## Adding a new build machine
+
+Start to finish this takes about ten minutes, and most of that is waiting for
+Go, Node and Python to download.
+
+### Before you start
+
+You need a shell on the new box already, through a cloud provider's console, a
+keyboard, or password SSH. Bootstrap cannot hand you your first login. You also
+need your phone for one GitHub device code.
+
+### 1. Name the machine
+
+```sh
+sudo hostnamectl set-hostname build01
+```
+
+Do this before anything else. The hostname becomes the filename of the key
+committed to `infra/keys/`, and the `Host` alias in the SSH config block printed
+at the end. A cloud image's default `ubuntu-2gb-nbg1-1` works, but you will be
+reading it for years. If you skip this step, pass `MACHINE_NAME=build01` to
+`make private` in step 5.
+
+### 2. Install git and clone
+
+```sh
+sudo apt-get update && sudo apt-get install -y git
+git clone https://github.com/painhardcore/dotfilesmd.git ~/.dotfiles
+cd ~/.dotfiles
+```
+
+### 3. Run bootstrap
+
+```sh
+./bootstrap.sh
+. ~/.profile
+```
+
+This installs the apt packages, Docker, Tailscale, mise and its toolchain,
+Claude Code, and Codex, then generates `~/.ssh/id_ed25519_dev`. It uses no
+credentials and is safe to rerun at any point.
+
+Sourcing `~/.profile` puts the mise shims on `PATH` for the current shell. A new
+login shell picks them up on its own.
+
+### 4. Authenticate to GitHub
+
+```sh
+gh auth login -s admin:public_key
+```
+
+Choose GitHub.com, HTTPS, then "Login with a web browser". `gh` prints an
+eight-character code. Open the URL on your phone, enter the code, approve.
+
+Do not drop the `-s admin:public_key`. Without that scope, step 5 stops when it
+tries to register the machine's key. If you already logged in without it:
+
+```sh
+gh auth refresh -h github.com -s admin:public_key
+```
+
+### 5. Join everything up
+
+```sh
+make private KEYS=macbookm1
+```
+
+Five things happen. It clones `infra` to `~/infra`, joins the tailnet as
+`tag:build`, commits and pushes `keys/build01.pub`, registers that key with your
+GitHub account, and writes `macbookm1.pub` into `~/.ssh/authorized_keys`.
+
+`KEYS=` names the files in `infra/keys/` that may log into this machine, without
+the `.pub` suffix. Run `make private` with no `KEYS=` first if you want to see
+what is available; it installs nothing and prints the list.
+
+### 6. Log in from your Mac
+
+The run ends by printing the machine's tailnet address and a config block to
+paste on your Mac:
+
+```sh
+cat >> ~/.ssh/config <<'SSHCONF'
+Host build01
+  HostName build01.taile1400.ts.net
+  User painhardcore
+  IdentityFile ~/.ssh/id_ed25519_dev
+SSHCONF
+```
+
+Then `ssh build01` from anywhere on the tailnet.
+
+The banner also prints an `ssh-copy-id` line. Skip it if your Mac's key was in
+`KEYS=` at step 5, because `make private` already installed it. Use it only to
+add a key that is not tracked in `infra/keys/`.
+
+### 7. Sign in to the agents
+
+```sh
+claude
+codex
+```
+
+Each opens a browser login the first time. On a headless box they print a URL to
+open elsewhere.
+
+### 8. Grant server access, if this machine needs it
+
+Nothing so far lets `build01` reach srv1 or srv2. Its key is on record in
+`infra/keys/` and that is all. Granting is a separate decision you make from
+your Mac:
+
+```sh
+cd ~/infra
+make keys-diff HOST=srv1    # preview
+make keys HOST=srv1         # apply
+```
+
+The machine can already push to your repositories as you, because step 5
+registered its key with your GitHub account.
+
+### Checking it worked
+
+```sh
+tailscale status          # this machine, tagged tag:build
+docker compose version    # v2, from docker.com's repo
+go version && node --version && python --version
+gh auth status            # scopes include admin:public_key
+```
+
+`docker ps` failing with a permission error means the `docker` group has not
+applied yet. Log out and back in.
+
+### Later
+
+```sh
+cd ~/.dotfiles
+make pull                     # git pull, then reapply
+make private KEYS=macbookm1   # re-sync keys and tailnet
+```
+
+Both are idempotent. `make private` makes no commit when the key has not
+changed, and skips the tailnet join when the machine is already up.
 
 ## What to expect at the end
 
@@ -114,7 +261,7 @@ package-manager install is ever preferred over the auto-updating native one.
 ### Tailscale
 
 On Ubuntu, bootstrap installs Tailscale from Tailscale's own apt repository. It
-is **not** installed on macOS — install it there yourself.
+is not installed on macOS. Install it there yourself.
 
 Bootstrap only installs the package. It never joins a tailnet: that needs an
 interactive login, and this repository holds no credentials. Joining is a manual
@@ -125,8 +272,8 @@ sudo tailscale up
 ```
 
 Once the machine is on your tailnet, rerun `make update`. The SSH block will
-then print the machine's tailnet address instead of its LAN IP — stable, and
-reachable from outside the network. See [SSH key](#ssh-key) below.
+then print the machine's tailnet address instead of its LAN IP, which is
+stable and reachable from outside the network. See [SSH key](#ssh-key) below.
 
 ## Shared agent instructions
 
@@ -138,8 +285,8 @@ reachable from outside the network. See [SSH key](#ssh-key) below.
 | Codex | `~/.codex/AGENTS.md` |
 | OpenCode | `~/.config/opencode/AGENTS.md` |
 
-Because they are symlinks, editing `AGENTS.md` here takes effect immediately —
-no resync step.
+Because they are symlinks, editing `AGENTS.md` here takes effect immediately.
+There is no resync step.
 
 If one of those paths already holds a real file or a link somewhere else, it is
 moved to `<path>.backup-<timestamp>` and the move is printed. Nothing is
@@ -195,7 +342,7 @@ existing lines.
 ## Private repository
 
 `./bootstrap.sh` never touches a credential. Everything that needs your identity
-— the private `infra` repo, the tailnet, and login keys — lives behind
+(the private `infra` repo, the tailnet, and login keys) lives behind
 `make private`.
 
 ```sh
@@ -207,7 +354,7 @@ make private KEYS=macbookm1
 ### Why the extra step
 
 Reaching a private repo needs a credential, and the tailnet auth key lives in
-that repo. Something has to be injected by hand the first time — there is no way
+that repo. Something has to be injected by hand the first time. There is no way
 around it on a genuinely fresh machine.
 
 `gh auth login` makes that step as small as possible. It uses OAuth device flow:
@@ -231,7 +378,7 @@ credential helper in your global git config so `git push` works over HTTPS.
    skipping if already up. The key is passed as `--auth-key file:...` rather
    than on the command line, where it would be visible in `ps`.
 3. Copies this machine's public key to `infra/keys/<hostname>.pub`, then commits
-   and pushes — only when it actually changed.
+   and pushes, but only when it actually changed.
 4. Registers the key with your GitHub account, skipping if already present.
 5. Writes the keys named in `KEYS=` into `~/.ssh/authorized_keys`.
 
@@ -240,7 +387,7 @@ Override the key filename with `MACHINE_NAME=`, the clone path with
 
 ### Committing a key stages access, it does not grant it
 
-`infra/keys/*.pub` grants root on every enabled host — but only when you run
+`infra/keys/*.pub` grants root on every enabled host, but only when you run
 `make keys HOST=...` in that repo. `make private` never does. It puts the key on
 record and leaves the decision to you:
 
@@ -268,8 +415,8 @@ so the next run can name them. A name with no matching file stops the run and
 lists what exists.
 
 The keys land between `# BEGIN MANAGED BY dotfilesmd` and `# END MANAGED BY
-dotfilesmd`. Only that block is rewritten, so keys you added by hand — and the
-separate block `infra`'s own `make keys` manages — are never touched. Dropping a
+dotfilesmd`. Only that block is rewritten, so keys you added by hand stay put,
+and so does the separate block `infra`'s own `make keys` manages. Dropping a
 name from `KEYS=` removes it on the next run.
 
 ## Updating
@@ -284,7 +431,7 @@ make pull      # git pull --ff-only, then apply
 make check     # syntax-check every script
 ```
 
-Use `make update` after editing anything here — a skill, `AGENTS.md`,
+Use `make update` after editing anything here: a skill, `AGENTS.md`,
 `mise.toml`. It works whether or not the tree is clean, which `git pull` does
 not. Use `make pull` to take a change you made on another machine.
 
@@ -292,8 +439,8 @@ Every run also upgrades mise-managed tools to the newest version **inside** the
 range `mise.toml` declares, so `go = "latest"` moves forward on its own while
 `python = "3.13"` stays on the 3.13 series. Crossing a range boundary is a
 deliberate edit to `mise.toml` (or `mise upgrade --bump`); mise prints a note
-when a newer out-of-range version exists. System packages are never upgraded —
-that is your OS's job, not this repo's.
+when a newer out-of-range version exists. System packages are never upgraded.
+That is your OS's job, not this repo's.
 
 A rerun that changes nothing is quiet: already-installed packages are skipped,
 and a skill is only reported when its contents actually changed.
@@ -344,11 +491,11 @@ all. Bootstrap prints the fallback too: append your MacBook's public key to
 
 The address is the best one available, most stable first:
 
-1. The machine's **tailnet address** — its MagicDNS name, or its `100.x` address
+1. The machine's tailnet address: its MagicDNS name, or its `100.x` address
    if MagicDNS is off. Stable and reachable from anywhere.
-2. The source address of its **default route** — a LAN IP. On a cloud host
-   behind NAT this is private, so substitute the reachable address.
-3. Its **hostname**, when there is nothing better.
+2. The source address of its default route, a LAN IP. On a cloud host behind
+   NAT this is private, so substitute the reachable address.
+3. Its hostname, when there is nothing better.
 
 A first bootstrap always falls back to the LAN IP, because Tailscale has only
 just been installed and is not up yet. The banner says so. Run
@@ -356,7 +503,7 @@ just been installed and is not up yet. The banner says so. Run
 
 Note the two keys point in opposite directions. `id_ed25519_dev` is generated so
 the machine can authenticate *outward*; `ssh-copy-id` authorizes your laptop to
-get *in*. Neither is managed by this repository — it only prints the command.
+get *in*. Neither is managed by this repository, which only prints the command.
 
 ### This repository does not grant access to any infrastructure
 
