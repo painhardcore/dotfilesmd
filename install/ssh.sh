@@ -19,3 +19,13 @@ else
     -C "$(id -un)@${ssh_host%%.*}" \
     -f "$SSH_KEY"
 fi
+
+# ssh only auto-offers its default identity filenames (id_rsa, id_ed25519, ...)
+# and this key deliberately is not one of them, so without an explicit
+# IdentityFile `git clone git@github.com:...` fails with "Permission denied
+# (publickey)" even once the key is registered on the account.
+# IdentitiesOnly keeps ssh from offering every other key in ~/.ssh first, which
+# GitHub counts against its authentication attempt limit.
+write_managed_block "$HOME/.ssh/config" "Host github.com
+  IdentityFile $SSH_KEY
+  IdentitiesOnly yes"
