@@ -9,6 +9,7 @@
 go     = "latest"
 node   = "lts"
 python = "3.13"
+rust   = "latest"
 
 # CLI tools. Installed here rather than from apt/brew so that the binary names
 # and versions are identical on macOS and Ubuntu -- apt's fd-find installs

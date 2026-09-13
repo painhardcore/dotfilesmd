@@ -51,7 +51,7 @@ agent instruction files are symlinks back to it.
 ## Adding a new build machine
 
 Start to finish this takes about ten minutes, and most of that is waiting for
-Go, Node and Python to download.
+Go, Node, Python, and Rust to download.
 
 ### Before you start
 
@@ -173,7 +173,7 @@ registered its key with your GitHub account.
 ```sh
 tailscale status          # this machine, tagged tag:build
 docker compose version    # v2, from docker.com's repo
-go version && node --version && python --version
+go version && node --version && python --version && rustc --version
 gh auth status            # scopes include admin:public_key
 ```
 
@@ -237,7 +237,7 @@ so a rerun on a settled machine shows just the key and the PATH line.
 |---|---|---|
 | git, curl, wget, make, build tools | apt / Homebrew | System-level software with no version to pin |
 | Docker + Compose v2 | Docker's own apt repo / Docker Desktop | Ubuntu's `docker.io` lags and has no `docker compose` plugin |
-| Go, Node.js, Python | mise | Versions declared in [`mise.toml`](mise.toml) |
+| Go, Node.js, Python, Rust | mise | Versions declared in [`mise.toml`](mise.toml) |
 | jq, yq, ripgrep, fd, gh | mise | See below |
 | Claude Code, Codex | Official installers | Vendor-recommended, self-updating |
 | Tailscale (Ubuntu only) | Tailscale's own apt repo | Gives the machine a stable address reachable from anywhere |
