@@ -462,21 +462,26 @@ The private key is never printed, never committed, and never leaves the machine.
 
 `id_ed25519_dev` is not one of the default filenames `ssh` offers on its own
 (`id_rsa`, `id_ed25519`, and so on), so bootstrap also writes a managed block to
-`~/.ssh/config` pointing `github.com` at it:
+`~/.ssh/config` pointing every host at it:
 
 ```
 # BEGIN MANAGED BY dotfilesmd
-Host github.com
+Host *
   IdentityFile ~/.ssh/id_ed25519_dev
+
+Host github.com
   IdentitiesOnly yes
 # END MANAGED BY dotfilesmd
 ```
 
-Without it, `git clone git@github.com:...` fails with `Permission denied
-(publickey)` even once the key is registered on the account, because `ssh` never
-offers the key. `IdentitiesOnly` stops `ssh` from trying every other key in
-`~/.ssh` first, which GitHub counts against its authentication attempt limit.
-Lines outside the managed block are left untouched.
+Without it, `git clone git@github.com:...` and `ssh` to hosts that trust
+`infra/keys/` fail with `Permission denied (publickey)` even once the key is
+registered, because `ssh` never offers the key. An explicit `IdentityFile` also
+means `ssh` stops offering the default filenames, so any other key must be named
+in your own `Host` block. `IdentitiesOnly` stops `ssh` from trying every other
+key first, which GitHub counts against its authentication attempt limit. It is
+limited to `github.com` because elsewhere it would also block keys from a
+forwarded agent. Lines outside the managed block are left untouched.
 
 ### Logging into an Ubuntu machine by key
 
