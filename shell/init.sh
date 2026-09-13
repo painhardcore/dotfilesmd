@@ -30,3 +30,9 @@ for _dotfilesmd_dir in "$HOME/.local/bin" "$HOME/.local/share/mise/shims"; do
 done
 unset _dotfilesmd_dir
 export PATH
+
+# macOS terminals set LC_CTYPE=UTF-8 and ssh forwards it (SendEnv LC_*). Linux
+# has no locale by that name, so every perl tool (shasum, ...) warns about it.
+if [ "${LC_CTYPE:-}" = "UTF-8" ] && [ "$(uname -s)" = "Linux" ]; then
+    export LC_CTYPE=C.UTF-8
+fi
