@@ -445,6 +445,22 @@ That is your OS's job, not this repo's.
 A rerun that changes nothing is quiet: already-installed packages are skipped,
 and a skill is only reported when its contents actually changed.
 
+## Git identity
+
+Bootstrap sets `user.name` and `user.email` in the global git config, so
+commits made from a fresh machine are attributed correctly instead of failing
+outright (recent git refuses to commit with no identity configured) or
+inheriting whatever a base image happened to set. Override either with an
+environment variable if a machine ever needs a different identity:
+
+```sh
+GIT_NAME="Other Name" GIT_EMAIL="other@example.com" ./bootstrap.sh
+```
+
+This only sets the identity used for authorship. Push access itself comes from
+the SSH key below (registered with GitHub via `make private`) or, over HTTPS,
+from `gh auth setup-git`.
+
 ## SSH key
 
 Bootstrap ensures `~/.ssh/id_ed25519_dev` exists, generating it if absent with a
@@ -549,6 +565,7 @@ dotfilesmd/
     ├── macos.sh       Homebrew and macOS packages
     ├── ubuntu.sh      apt packages and Docker
     ├── agents.sh      AGENTS.md symlinks and skills sync
+    ├── git.sh         global git identity
     └── ssh.sh         machine-specific SSH key
 ```
 

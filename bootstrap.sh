@@ -184,11 +184,15 @@ done
 # shellcheck source=/dev/null
 . "$REPO/install/agents.sh"
 
-# 6. Machine-specific SSH key.
+# 6. Git identity, so commits made from this machine are attributed correctly.
+# shellcheck source=/dev/null
+. "$REPO/install/git.sh"
+
+# 7. Machine-specific SSH key.
 # shellcheck source=/dev/null
 . "$REPO/install/ssh.sh"
 
-# 7. Private repository phase, only with --private. Runs after the key exists
+# 8. Private repository phase, only with --private. Runs after the key exists
 #    (it commits the public half) and before the address is chosen below, so a
 #    tailnet joined here is reflected in the banner on the same run.
 if [ -n "$PRIVATE" ]; then
