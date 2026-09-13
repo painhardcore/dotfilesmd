@@ -31,3 +31,9 @@ I love to build software in very efficient way, keeping it simple and maintainab
 - `jq` for JSON
 - `yq` for YAML
  If a preferred tool is unavailable, use an installed alternative. Ask before installing software.
+
+<!-- developer-standards:start -->
+# developer-standards
+
+@/root/developer-standards/integrations/codex/AGENTS.md
+<!-- developer-standards:end -->
