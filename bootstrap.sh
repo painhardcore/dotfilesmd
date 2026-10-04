@@ -25,11 +25,13 @@ warn() { printf '\033[1;33mWARN\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mERROR\033[0m %s\n' "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
-# Empty when already root (containers, cloud images) so the same scripts work
-# with or without sudo installed.
-SUDO=""
-# shellcheck disable=SC2034  # used by install/ubuntu.sh, which is sourced below
-[ "$(id -u)" -eq 0 ] || SUDO="sudo"
+# Empty when already root (containers, cloud images). Set SUDO=pkexec when the
+# caller needs a graphical authentication prompt instead of a terminal prompt.
+SUDO="${SUDO:-}"
+# shellcheck disable=SC2034  # used by the install/<os>.sh scripts sourced below
+if [ "$(id -u)" -ne 0 ]; then
+  SUDO="${SUDO:-sudo}"
+fi
 
 # Things the user must do by hand, printed once at the end.
 # A newline-delimited string rather than an array: macOS still ships bash 3.2,
@@ -112,10 +114,11 @@ detect_os() {
       . /etc/os-release
       case ":${ID:-}:${ID_LIKE:-}:" in
         *:ubuntu:*|*:debian:*) echo ubuntu ;;
-        *) die "unsupported Linux distribution '${ID:-unknown}'; this repo targets Ubuntu/Debian" ;;
+        *:arch:*|*:archlinux:*) echo arch ;;
+        *) die "unsupported Linux distribution '${ID:-unknown}'; this repo targets Ubuntu/Debian and Arch Linux" ;;
       esac
       ;;
-    *) die "unsupported OS '$(uname -s)'; this repo targets macOS and Ubuntu" ;;
+    *) die "unsupported OS '$(uname -s)'; this repo targets macOS and Linux" ;;
   esac
 }
 

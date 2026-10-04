@@ -1,8 +1,8 @@
 # dotfilesmd
 
-Bootstrap for my development machines. One command on a fresh macOS or Ubuntu
-box installs the tools I use, wires up my shared coding-agent instructions, and
-generates a machine-specific SSH key.
+Bootstrap for my development machines. One command on a fresh macOS, Ubuntu,
+or Arch Linux box installs the tools I use, wires up my shared coding-agent
+instructions, and generates a machine-specific SSH key.
 
 [AGENTS.md](AGENTS.md) is the heart of it: my preferences for how agents
 investigate problems, write code, and work with me, shared across Claude Code,
@@ -12,9 +12,11 @@ Codex, and OpenCode.
 
 - macOS 13+, Apple Silicon or Intel
 - Ubuntu 22.04 / 24.04 LTS and Debian-based derivatives, x86_64 or arm64
+- Arch Linux and derivatives such as Omarchy, x86_64 or arm64
 
-Architecture is handled automatically: the Docker apt source is templated with
-`dpkg --print-architecture`, and mise resolves the right build per platform.
+Architecture is handled automatically: the Docker apt source on Ubuntu is
+templated with `dpkg --print-architecture`, and mise resolves the right build
+per platform.
 
 ## Fresh machine
 
@@ -26,11 +28,17 @@ A brand new box has no `git`, so install that first.
 sudo apt-get update && sudo apt-get install -y git
 ```
 
+**Arch Linux / Omarchy:**
+
+```sh
+sudo pacman -S --needed git
+```
+
 **macOS:** running `git` for the first time prompts you to install the Xcode
 Command Line Tools. Accept it and wait for it to finish before continuing.
 (`xcode-select --install` starts the same prompt.)
 
-Then, on either:
+Then, on any supported system:
 
 ```sh
 git clone https://github.com/painhardcore/dotfilesmd.git ~/.dotfiles
@@ -44,7 +52,7 @@ That is the whole story for a laptop. For an Ubuntu box that also joins the
 tailnet and gets login keys, follow [Adding a new build
 machine](#adding-a-new-build-machine) instead.
 
-The script needs `sudo` only for apt packages on Ubuntu. Everything else
+The script needs `sudo` for system packages on Ubuntu and Arch. Everything else
 installs into your home directory. Keep the checkout in place, because the
 agent instruction files are symlinks back to it.
 
@@ -235,12 +243,15 @@ so a rerun on a settled machine shows just the key and the PATH line.
 
 | | Source | Why |
 |---|---|---|
-| git, curl, wget, make, build tools | apt / Homebrew | System-level software with no version to pin |
-| Docker + Compose v2 | Docker's own apt repo / Docker Desktop | Ubuntu's `docker.io` lags and has no `docker compose` plugin |
+| git, curl, wget, make, build tools | apt / pacman / Homebrew | System-level software with no version to pin |
+| Docker + Compose v2 | Docker's own apt repo / pacman / Docker Desktop | Ubuntu's `docker.io` lags and has no `docker compose` plugin |
 | Go, Node.js, Python, Rust | mise | Versions declared in [`mise.toml`](mise.toml) |
 | jq, yq, ripgrep, fd, gh | mise | See below |
 | Claude Code, Codex | Official installers | Vendor-recommended, self-updating |
-| Tailscale (Ubuntu only) | Tailscale's own apt repo | Gives the machine a stable address reachable from anywhere |
+| Tailscale (Linux only) | Tailscale's own apt repo / pacman | Gives the machine a stable address reachable from anywhere |
+
+On Arch, bootstrap also starts the Docker and Tailscale services. Docker group
+membership takes effect after logging out and back in.
 
 The CLI tools come from mise on both operating systems rather than from apt or
 Homebrew. Ubuntu's `fd-find` package installs the binary as `fdfind`, and
@@ -260,12 +271,14 @@ package-manager install is ever preferred over the auto-updating native one.
 
 ### Tailscale
 
-On Ubuntu, bootstrap installs Tailscale from Tailscale's own apt repository. It
-is not installed on macOS. Install it there yourself.
+On Ubuntu, bootstrap installs Tailscale from Tailscale's own apt repository. On
+Arch it uses the official pacman repository and starts the `tailscaled` service.
+It is not installed on macOS; install it there yourself.
 
-Bootstrap only installs the package. It never joins a tailnet: that needs an
-interactive login, and this repository holds no credentials. Joining is a manual
-step, and it appears in the "Next steps" footer after a fresh install:
+Bootstrap installs the package and starts its service, but never joins a
+tailnet. Joining needs an interactive login, and this repository holds no
+credentials. The command appears in the "Next steps" footer after a fresh
+install:
 
 ```sh
 sudo tailscale up
@@ -562,6 +575,7 @@ dotfilesmd/
 ├── shell/init.sh      PATH setup, sourced by your shell and by bootstrap
 ├── skills/            personal agent skills
 └── install/
+    ├── arch.sh        pacman packages, Docker, and Tailscale
     ├── macos.sh       Homebrew and macOS packages
     ├── ubuntu.sh      apt packages and Docker
     ├── agents.sh      AGENTS.md symlinks and skills sync
