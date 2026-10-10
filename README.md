@@ -305,6 +305,24 @@ If one of those paths already holds a real file or a link somewhere else, it is
 moved to `<path>.backup-<timestamp>` and the move is printed. Nothing is
 silently overwritten.
 
+### Cheap-model subagent
+
+`AGENTS.md` tells the main model to hand read-only legwork to a subagent named
+`scout`: searching many files, reading logs, running tests with long output.
+`scout` runs on a cheaper model and returns only the conclusion, so the bulk
+text stays out of the main context.
+
+`AGENTS.md` says when to delegate. The model comes from a definition file per
+tool, which bootstrap symlinks the same way:
+
+| Tool | Source | Path | Model |
+| --- | --- | --- | --- |
+| Claude Code | `agents/scout.md` | `~/.claude/agents/scout.md` | `haiku` |
+| Codex | `agents/scout.toml` | `~/.codex/agents/scout.toml` | `gpt-6-luna` |
+
+Both tools load agents at session start, so restart the session after the
+first `make update`. OpenCode has no `scout` and does the work itself.
+
 ## Skills
 
 [`skills/`](skills/) is the source of truth for my personal agent skills. One
@@ -569,6 +587,7 @@ Granting the key access is a separate, deliberate, manual step.
 ```
 dotfilesmd/
 ├── AGENTS.md          canonical agent instructions
+├── agents/            scout subagent definitions for Claude Code and Codex
 ├── bootstrap.sh       entry point: helpers, OS detection, the driver
 ├── mise.toml          tool versions
 ├── Makefile           bootstrap / update / check
@@ -578,7 +597,7 @@ dotfilesmd/
     ├── arch.sh        pacman packages, Docker, and Tailscale
     ├── macos.sh       Homebrew and macOS packages
     ├── ubuntu.sh      apt packages and Docker
-    ├── agents.sh      AGENTS.md symlinks and skills sync
+    ├── agents.sh      AGENTS.md and subagent symlinks, skills sync
     ├── git.sh         global git identity
     └── ssh.sh         machine-specific SSH key
 ```

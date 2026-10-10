@@ -8,7 +8,9 @@ I love to build software in very efficient way, keeping it simple and maintainab
 - Preserve unrelated local changes.
 - Keep changes within the request. Propose anything extra and explain why it helps.
 - Questions asking for an explanation authorize investigation only. Do not modify files, install tools, or run builds/tests unless requested. Requests to make a change, including "Can you fix this?", authorize edits and relevant checks. If an explanation is all I asked for and the solution is obvious, just propose it.
-- Do not spawn subagents, if it could be done by the same agent. Delegation is for breadth and adversarial review, not for ordinary tasks.
+- Delegate read-only legwork to the `scout` subagent when it would pull a lot of text into context: searching many files, reading large files or logs, running tests or commands with long output, fetching docs. Do small lookups yourself. A spawn costs more than a couple of reads.
+- `scout` runs on a cheaper model. Check its finding yourself before you rely on it for an edit.
+- Do not spawn other subagents if the same agent could do the work. Those are for breadth and adversarial review.
 - Use the configured Git identity without changing attribution. Do not add co-author or AI attribution trailers to commit messages.
 
 ## General coding preferences
