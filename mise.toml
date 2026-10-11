@@ -19,6 +19,8 @@ yq      = "latest"
 ripgrep = "latest"
 fd      = "latest"
 gh      = "latest"
+codex = "latest"
+claude = "latest"
 
 [settings]
 # Use prebuilt python binaries. Compiling from source takes minutes and pulls in
