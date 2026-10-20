@@ -12,6 +12,7 @@ I love to build software in very efficient way, keeping it simple and maintainab
 - `scout` runs on a cheaper model. Check its finding yourself before you rely on it for an edit.
 - Do not spawn other subagents if the same agent could do the work. Those are for breadth and adversarial review.
 - Use the configured Git identity without changing attribution. Do not add co-author or AI attribution trailers to commit messages.
+- The same applies to everything else I publish: PR descriptions, issues, review comments, chat messages, docs. No "Generated with" footers, no AI attribution, no mentions that an agent or AI tool wrote or helped with it.
 
 ## General coding preferences
 - KISS(Keep it simple, stupid.) and YAGNI(You Aren't Gonna Need It) are the core.
